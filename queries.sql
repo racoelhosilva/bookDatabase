@@ -5,7 +5,7 @@
 -- BookTitle + AuthorName + YearPublished + Publisher
 select title, aname, yearPublished, pname
 from WRITES, BOOK, AUTHOR, PUBLISHER
-where bID=bookID and aID=authorID and publisherID=published;
+where bID=bookID and aID=authorID and publisherID=publisher;
 
 -- BookTitle + CollectionName + CollectionNumber
 select title, cname, num
