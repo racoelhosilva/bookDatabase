@@ -1,0 +1,243 @@
+#+title: Book Database
+#+description: Simple book rating database using SQL
+#+startup: showeverything
+
+#+BEGIN_QUOTE
+Simple book rating database using SQL.
+
+Contains schema creation as well as some insertions and queries. Made with SQLite.
+#+END_QUOTE
+
+
+*** Table of Contents :toc:
+  - [[#usage-commands][Usage Commands]]
+  - [[#initial-settings][Initial Settings]]
+  - [[#database-defition][Database Defition]]
+  - [[#data-insertions][Data Insertions]]
+  - [[#sample-queries][Sample Queries]]
+
+** Usage Commands
+
+In order to load the files into sqlite, just launch sqlite3 through the command line and load the sql files in order as follows:
+
+#+BEGIN_SRC
+# Load the database schema
+.read create.sql
+
+# Load data into the database (optional)
+.read populate.sql
+
+# Query the database using the examples below (optional)
+.read queries.sql
+#+END_SRC
+
+After constructing and populating the database, we can also save it as database file (.db). This makes is easier to save and load the database in SQLite, however, keep in mind that changes made to the database will also be stored here when saved.
+
+#+BEGIN_SRC
+# Save the files into a db
+.save books.db
+
+# Load database on another session
+.read books.db
+#+END_SRC
+
+** Initial Settings
+
+Setup the environment for database creation and use:
+
+1) *Drop existing tables* if any exist that can cause conflicts
+2) Enable columns and headers for *output options*
+3) Enable *foreign keys* inside SQLite
+
+#+BEGIN_SRC sql :tangle create.sql
+----------------------------
+-- Initial configurations --
+----------------------------
+
+-- Drop existing tables
+drop table if exists BOOK;
+drop table if exists PUBLISHER;
+drop table if exists AUTHOR;
+drop table if exists WRITES;
+drop table if exists COLLECTION;
+drop table if exists COLNUM;
+drop table if exists READING;
+drop table if exists RATING;
+
+-- Basic configurations for output
+.mode columns
+.headers on
+
+-- Enabling sqlite options
+PRAGMA foreign_keys=ON;
+#+END_SRC
+
+** Database Defition
+
+Define each of the tables with attributes, primary keys and foreign keys. Some of them also have constraints and defaults.
+
+#+BEGIN_SRC sql :tangle create.sql
+-----------------------
+-- Table Definitions --
+-----------------------
+
+-- Single book entity
+-- central entity
+create table BOOK (
+       bookID INTEGER PRIMARY KEY NOT NULL,
+       title TEXT NOT NULL,
+       yearPublished INTEGER,
+       language TEXT DEFAULT 'PT' CONSTRAINT possibleLanguages CHECK (language in ('PT', 'EN')),
+       format TEXT DEFAULT 'M' CONSTRAINT possibleFormats CHECK (format in ('P', 'D', 'M')),
+       publisher INTEGER,
+       FOREIGN KEY(publisher) REFERENCES PUBLISHER(publisherID) ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+-- Publisher entity, only referenced by BOOK
+-- publisher of books, associated with them
+create table PUBLISHER(
+       publisherID INTEGER PRIMARY KEY NOT NULL,
+       pname TEXT NOT NULL,
+       pcountry TEXT,
+       yearFoundation INTEGER
+);
+
+-- Author entity, related to WRITES
+-- writer of books, associated with them
+create table AUTHOR(
+       authorID INTEGER PRIMARY KEY NOT NULL,
+       aname TEXT NOT NULL,
+       acountry TEXT,
+       birthYear INTEGER
+);
+
+-- Relation that connects BOOK with AUTHOR
+-- Note: a book can be written by more than one person
+create table WRITES(
+       bID INTEGER,
+       aID INTEGER,
+       FOREIGN KEY(bID) REFERENCES BOOK(bookID) ON DELETE SET NULL ON UPDATE CASCADE,
+       FOREIGN KEY(aID) REFERENCES AUTHOR(authorID) ON DELETE SET NULL ON UPDATE CASCADE,
+       PRIMARY KEY(bID, aID)
+);
+
+-- Collection entity, specified with a number
+-- used for tracking a set of books that are similar and connected
+create table COLLECTION(
+       collectionID INTEGER PRIMARY KEY NOT NULL,
+       cname TEXT NOT NULL,
+       total INTEGER
+);
+
+-- Collection Number entity, connects book with collection
+-- associates a number to the book when inside the collection
+create table COLNUM(
+       cID INTEGER,
+       bID INTEGER,
+       num INTEGER,
+       FOREIGN KEY(cID) REFERENCES COLLECTION(collectionID) ON DELETE SET NULL ON UPDATE CASCADE,
+       FOREIGN KEY(bID) REFERENCES BOOK(bookID) ON DELETE SET NULL ON UPDATE CASCADE,
+       PRIMARY KEY(cID, bID),
+       UNIQUE(cID, num)
+);
+
+-- Reading entity, associated with BOOK
+-- specifies one entire reading of the book
+create table READING(
+       readingID INTEGER PRIMARY KEY NOT NULL,
+       startDate TEXT,
+       endDate TEXT,
+       duration INTEGER
+);
+
+-- Rating entity, relates BOOK to READING
+-- Note: a book can be read different times for different ratings
+create table RATING(
+       bID INTEGER,
+       rID INTEGER,
+       captivatingEntertaining INTEGER,
+       worldBuildingAtmosphere INTEGER,
+       characters INTEGER,
+       emotionalImpact INTEGER,
+       plot INTEGER,
+       writingStyle INTEGER,
+       logic INTEGER,
+       FOREIGN KEY(bID) REFERENCES BOOK(bookID) ON DELETE SET NULL ON UPDATE CASCADE,
+       FOREIGN KEY(rID) REFERENCES READING(readingID) ON DELETE SET NULL ON UPDATE CASCADE,
+       PRIMARY KEY(rID)
+);
+#+END_SRC
+
+** Data Insertions
+
+Some examples of data insertions for each of the tables, as well referencing between tables.
+
+#+BEGIN_SRC sql :tangle populate.sql
+----------------------
+-- Value Insertions --
+----------------------
+
+-- Publisher
+insert into PUBLISHER values (1, 'Saída de Emergência', 'Portugal', 2003);
+insert into PUBLISHER(publisherID, pname, pcountry) values (2, 'Editorial Presença', 'Portugal');
+insert into PUBLISHER(publisherID, pname) values (3, 'Penguin Random House'), (4, 'HarperCollins');
+
+-- Book
+insert into BOOK(bookID, title, yearPublished, publisher) values (1, 'Fundação', 1951, 1), (2, 'Fundação e Império', 1952, 1),(3, 'Segunda Fundação', 1953, 1);
+insert into BOOK values (4, 'To Kill A Mockingbird', 1960, 'EN', 'M', 4);
+
+-- Author
+insert into AUTHOR(authorID, aname) values (1, 'Isaac Asimov');
+insert into AUTHOR values (2, 'Harper Lee', 'United States of America', 1926);
+
+-- Writes (Relation between AUTHOR and BOOK)
+insert into WRITES values (1, 1), (2, 1), (3, 1);
+insert into WRITES(aID, bID) values (2, 4);
+
+-- Collection
+insert into COLLECTION values (1, 'Fundação', 7);
+
+-- ColNum
+insert into COLNUM values (1,1,1),(1,2,2),(1,3,3);
+
+-- Reading
+insert into READING values (1, '2021-01-28', '2021-02-04', 7), (2, '2021-02-04', '2021-02-07', 3), (3, '2021-02-08', '2021-02-20', 12);
+insert into READING(readingID, startDate, endDate) values (4, '2021-04-16', '2021-05-29');
+
+-- Rating
+insert into RATING values (1,1,9,10,10,9,10,10,9);
+insert into RATING values (2,2,8,10,10,8,9,9,9), (3,3,9,10,10,10,10,9,9);
+insert into RATING values (4,4,8,7,9,9,7,7,10);
+#+END_SRC
+
+** Sample Queries
+
+Examples of some useful queries that can be used with this database:
+
+***** Query with Book, Author and Publisher
+
+#+BEGIN_SRC sql :tangle queries.sql
+-- BookTitle + AuthorName + YearPublished + Publisher
+select title, aname, yearPublished, pname
+from WRITES, BOOK, AUTHOR, PUBLISHER
+where bID=bookID and aID=authorID and publisherID=publisher;
+#+END_SRC
+
+***** Query with Book, Collection and Number
+
+#+BEGIN_SRC sql :tangle queries.sql
+-- BookTitle + CollectionName + CollectionNumber
+select title, cname, num
+from BOOK, COLLECTION, COLNUM
+where bookID=bID and cID=collectionID;
+#+END_SRC
+
+***** Query with Book, Reading and Rating
+
+#+BEGIN_SRC sql :tangle queries.sql
+-- BookTitle + StartDate + EndDate + Rating
+select title, startDate, endDate,
+(logic+writingStyle+plot+emotionalImpact+characters+worldBuildingAtmosphere+captivatingEntertaining)/7.0 as rating
+from BOOK, READING, RATING
+where rID=readingID and bID=bookID;
+#+END_SRC
