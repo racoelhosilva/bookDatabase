@@ -1,7 +1,3 @@
---------------------
--- Sample Queries --
---------------------
-
 -- BookTitle + AuthorName + YearPublished + Publisher
 select title, aname, yearPublished, pname
 from WRITES, BOOK, AUTHOR, PUBLISHER
